@@ -1,0 +1,25 @@
+### DotnetCore ###
+# .NET Core build folders
+bin/
+obj/
+
+*.vsidx
+
+# Common node modules locations
+/node_modules
+/wwwroot/node_modules
+
+# Ignorar archivos y directorios generados por Visual Studio y .NET
+bin/
+obj/
+
+# Ignorar archivos de caché y archivos temporales
+.vs/
+*.user
+*.suo
+*.cache
+
+# Ignorar los paquetes y directorios de paquetes generados por NuGet
+packages/
+*.nupkg
+*.paket.restore.log
