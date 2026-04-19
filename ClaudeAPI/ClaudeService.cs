@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using static System.Net.WebRequestMethods;
 
@@ -36,6 +37,14 @@ namespace ClaudeAPI
             });
         }
 
+        public class Params
+        {
+            public string Model { get; set; }
+            public int MaxTokens { get; set; }
+            public string[] Messages { get; set; }
+            public string? System { get; set; }
+        }
+
         public void AddAssistantMessage(List<Message> messages, string text)
         {
             messages.Add(new Message
@@ -45,18 +54,33 @@ namespace ClaudeAPI
             });
         }
 
-        public async Task<string> ChatWithClaudeAsync(List<Message> messages)
+        public async Task<string> ChatWithClaudeAsync(List<Message> messages, string model, string system="", double temperature=1.0)
         {
             var body = new
             {
                 model = "claude-haiku-4-5-20251001",
                 max_tokens = 1000,
-                messages = messages
+                messages = messages,
+                system = string.IsNullOrEmpty(system) ? null : system,
+                temperature = temperature
+            };
+
+            //var body = new Params
+            //{
+            //    Model = model,
+            //    MaxTokens = 1000,
+            //    Messages = messages.Select(m => m.content).ToArray(),
+
+            //};
+
+            var options = new JsonSerializerOptions
+            {
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
             };
 
             var response = await _httpClient.PostAsync(
                 "https://api.anthropic.com/v1/messages",
-                new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json")
+                new StringContent(JsonSerializer.Serialize(body, options), Encoding.UTF8, "application/json")
             );
 
             var json = await response.Content.ReadAsStringAsync();
@@ -73,5 +97,13 @@ namespace ClaudeAPI
     {
         public string role { get; set; }
         public string content { get; set; }
+    }
+
+    public class Parameters
+    {
+        public string Model { get; set; }
+        public int MaxTokens { get; set; }
+        public List<Message> Messages { get; set; }
+        public string? System { get; set; }
     }
 }
