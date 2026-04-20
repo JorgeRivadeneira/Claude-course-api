@@ -54,6 +54,77 @@ namespace ClaudeAPI
             });
         }
 
+        public async Task<string> StreamClaudeAsync(List<Message> messages, string system="")
+        {
+            char[] buffer = new char[1024];
+            var body = new
+            {
+                model = "claude-haiku-4-5-20251001",
+                max_tokens = 1000,
+                messages = messages,
+                stream = true,
+                system = string.IsNullOrEmpty(system) ? null : system
+            };
+
+            var options = new JsonSerializerOptions
+            {
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+            };
+
+            var request = new HttpRequestMessage(HttpMethod.Post, "https://api.anthropic.com/v1/messages")
+            {
+                Content = new StringContent(JsonSerializer.Serialize(body, options), Encoding.UTF8, "application/json")
+            };
+
+            var response = await _httpClient.SendAsync(
+                request,
+                HttpCompletionOption.ResponseHeadersRead
+            );
+
+            using var stream = await response.Content.ReadAsStreamAsync();
+            using var reader = new StreamReader(stream);
+
+            var fullResponse = new StringBuilder();
+
+            while (!reader.EndOfStream)
+            {
+                var line = await reader.ReadLineAsync();
+
+                if (string.IsNullOrWhiteSpace(line))
+                    continue;
+
+                if (line.StartsWith("data: "))
+                {
+                    var json = line.Substring(6);
+
+                    if (json == "[DONE]")
+                        break;
+
+                    using var doc = JsonDocument.Parse(json);
+                    var root = doc.RootElement;
+
+                    if (root.TryGetProperty("type", out var typeElement) &&
+                        typeElement.GetString() == "content_block_delta")
+                    {
+                        var text = root
+                            .GetProperty("delta")
+                            .GetProperty("text")
+                            .GetString();
+                        Console.ForegroundColor = ConsoleColor.DarkGray;
+                        Console.Write(text);
+                        Console.Out.Flush();
+
+                        fullResponse.Append(text);
+                    }
+                }
+            }
+            Console.WriteLine();
+            Console.WriteLine("Press Enter if you want to leave the conversation."); 
+            Console.WriteLine();
+
+            return fullResponse.ToString();
+        }
+
         public async Task<string> ChatWithClaudeAsync(List<Message> messages, string model, string system="", double temperature=1.0)
         {
             var body = new
@@ -62,7 +133,8 @@ namespace ClaudeAPI
                 max_tokens = 1000,
                 messages = messages,
                 system = string.IsNullOrEmpty(system) ? null : system,
-                temperature = temperature
+                temperature = temperature,
+                stream = true
             };
 
             //var body = new Params
