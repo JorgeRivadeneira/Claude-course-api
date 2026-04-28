@@ -54,7 +54,7 @@ namespace ClaudeAPI
             });
         }
 
-        public async Task<string> StreamClaudeAsync(List<Message> messages, string system="")
+        public async Task<string> StreamClaudeAsync(List<Message> messages, string system = "")
         {
             char[] buffer = new char[1024];
             var body = new
@@ -119,13 +119,13 @@ namespace ClaudeAPI
                 }
             }
             Console.WriteLine();
-            Console.WriteLine("Press Enter if you want to leave the conversation."); 
+            Console.WriteLine("Press Enter if you want to leave the conversation.");
             Console.WriteLine();
 
             return fullResponse.ToString();
         }
 
-        public async Task<string> ChatWithClaudeAsync(List<Message> messages, string model, string system="", double temperature=1.0)
+        public async Task<string> ChatWithClaudeAsync(List<Message> messages, string model, string system = "", double temperature = 1.0)
         {
             var body = new
             {
@@ -134,7 +134,8 @@ namespace ClaudeAPI
                 messages = messages,
                 system = string.IsNullOrEmpty(system) ? null : system,
                 temperature = temperature,
-                stream = true
+                stop_sequences = new[] { "```" }
+                //stream = true
             };
 
             //var body = new Params
@@ -164,7 +165,77 @@ namespace ClaudeAPI
                 .GetProperty("text")
                 .GetString();
         }
+
+        public async Task<string> ChatSimple(List<Message> messages)
+        {
+            var body = new
+            {
+                model = "claude-haiku-4-5-20251001",
+                max_tokens = 1000,
+                messages = messages,
+                //system = string.IsNullOrEmpty(system) ? null : system,
+                temperature = 0.2,
+                //stop_sequences = new[] { "```" }
+                //stop_sequences = stop_sequences
+            };
+
+            var options = new JsonSerializerOptions
+            {
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+            };
+
+            var response = await _httpClient.PostAsync(
+                "https://api.anthropic.com/v1/messages",
+                new StringContent(JsonSerializer.Serialize(body, options), Encoding.UTF8, "application/json")
+            );
+
+            var json = await response.Content.ReadAsStringAsync();
+
+            using var doc = JsonDocument.Parse(json);
+
+            return doc.RootElement
+                .GetProperty("content")[0]
+                .GetProperty("text")
+                .GetString();
+        }
+    
+
+
+        public async Task<string> Chat(List<Message> messages, string[] stop_sequences, string system = "", double temperature = 1.0)
+        {
+            var body = new
+            {
+                model = "claude-haiku-4-5-20251001",
+                max_tokens = 1000,
+                messages = messages,
+                system = string.IsNullOrEmpty(system) ? null : system,
+                temperature = temperature,
+                //stop_sequences = new[] { "```" }
+                stop_sequences = stop_sequences
+            };
+
+            var options = new JsonSerializerOptions
+            {
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+            };
+
+            var response = await _httpClient.PostAsync(
+                "https://api.anthropic.com/v1/messages",
+                new StringContent(JsonSerializer.Serialize(body, options), Encoding.UTF8, "application/json")
+            );
+
+            var json = await response.Content.ReadAsStringAsync();
+
+            using var doc = JsonDocument.Parse(json);
+
+            return doc.RootElement
+                .GetProperty("content")[0]
+                .GetProperty("text")
+                .GetString();
+        }
     }
+
+
     public class Message
     {
         public string role { get; set; }
